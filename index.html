@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Factorio Rangy Doos</title>
+    <style id="varstyles">
+        :root {
+            --beltcolor: yellow;
+        }
+        section {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+        }
+    </style>
+</head>
+
+<body>
+
+        <section>
+            <slider-wrapper id="sliders1"></slider-wrapper>
+            <div>
+                <label>Belt Speed</label>
+                <select id="beltspeed">
+                    <option selected value="yellow">Yellow</option>
+                    <option value="red">Red</option>
+                    <option value="blue">Blue</option>
+                </select>
+                <span class="range-display"></span>
+            </div>
+            <belts data-beltsize="50" data-linkedsliders="sliders1" data-beltspeed="beltspeed"></belts>
+        </section>
+
+    <style id="belts-styles">
+        .belts {
+            box-sizing: border-box;
+            position: relative;
+            overflow-y: hidden;
+        }
+        .belt {
+            box-sizing: border-box;
+            will-change: transform;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            align-content: flex-start;
+            position: absolute;
+            width: 100%;
+            top: 0;
+            left: 0;
+            background-color: grey;
+        }
+        .gub {
+            width: 20%;
+            height: 20%;
+            margin: 2%;
+            transform: translateX(-4%);
+            background-color: silver;
+            box-shadow: 1px 1px 1px black;
+        }
+        .belt:before {
+            z-index: -1;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            content: "\\/";
+            color: var(--beltcolor);
+            /* opacity: 0.4; */
+        }
+    </style>
+    <template id="belts-template">
+        <div class="belts">
+            <div class="belt"></div>
+            <div class="belt"></div>
+            <div class="belt"></div>
+            <div class="belt"></div>
+            <div class="belt"></div>
+            <div class="belt"></div>
+            <div class="belt"></div>
+        </div>
+    </template>
+    <template id="gub-template">
+        <div class="gub"></div>
+    </template>
+    <script id="belts-scripts">
+        {
+            const template = document.querySelector("#belts-template");
+            const gubTemplate = document.querySelector("#gub-template");
+            const beltspeedmultipliermap = {
+                yellow: 1,
+                red: 2,
+                blue: 3
+            };
+            let beltspeedmultiplier = "yellow";
+            document.querySelectorAll("belts").forEach(belts => {
+                belts.appendChild(document.importNode(template.content, true));
+
+                beltspeedmultiplier = document.getElementById(belts.dataset.beltspeed).value;
+                document.getElementById(belts.dataset.beltspeed).addEventListener("change", e => {
+                    beltspeedmultiplier = e.target.value;
+                    document.documentElement.style.setProperty("--beltcolor", beltspeedmultiplier);
+                });
+                belts.dataset.beltsize = belts.dataset.beltsize || "25";
+                const numbelts = belts.querySelector(".belts").children.length;
+                const beltsize = +(belts.dataset.beltsize);
+                const _belts = belts.querySelector(".belts");
+                _belts.style.height = `${beltsize * (numbelts - 2)}px`;
+                _belts.style.width = `${beltsize}px`;
+                _belts.style.fontSize = `${beltsize / 2}px`;
+                document.documentElement.style.setProperty("--beltcolor", beltspeedmultiplier);
+
+                document.getElementById(belts.dataset.linkedsliders).addEventListener("gub", e => {
+                    const entrybelt = Array.from(belts.querySelectorAll(".belt")).find(belt => {
+                        const ypos = (+belt.dataset.ypos);
+                        return ypos <= (beltsize * .8) && ypos > (-1 * beltsize * .2);
+                    });
+                    entrybelt.children.length < 13 &&
+                        entrybelt.appendChild(document.importNode(gubTemplate.content, true));
+                });
+
+                belts.querySelectorAll(".belt").forEach((belt, index) => {
+                    belt.style.height = `${beltsize}px`;
+                    belt.dataset.ypos = index * beltsize - beltsize;
+                    requestAnimationFrame(previousNow =>
+                        requestAnimationFrame(now => renderBelt(belt, beltsize, numbelts, previousNow, now))
+                    );
+                });
+            });
+
+            function renderBelt(belt, beltsize, numbelts, previousNow, now) {
+                const ypos = +belt.dataset.ypos;
+                const diff = (now - previousNow) / 1000 * beltsize * beltspeedmultipliermap[beltspeedmultiplier];
+                const newPos = ((ypos + beltsize + diff) % (numbelts * beltsize)) - beltsize;
+                if(ypos > 0 && newPos <= 0) {
+                    while (belt.firstChild) {
+                        belt.removeChild(belt.firstChild);
+                    }
+                }
+                belt.dataset.ypos = `${newPos}`;
+                belt.style.transform = `translate3d(0,${newPos}px,0)`;
+                requestAnimationFrame(newNow => renderBelt(belt, beltsize, numbelts, now, newNow));
+            }
+        }
+    </script>
+    <template id="slider-wrapper-template">
+        <div class="slider-wrapper" id="sliders">
+            <h1>Resource <span class="slider-index"></span></h1>
+            <div>
+                <label># Factories</label>
+                <input type="range" value="1" min="1" step="1" max="25" data-sliderid="numfactories" />
+                <span class="range-display"></span>
+            </div>
+            <div>
+                <label># Built</label>
+                <input type="range" value="1" min="1" step="1" max="3" data-sliderid="numbuilt" />
+                <span class="range-display"></span>
+            </div>
+            <div>
+                <label>Build Time (s)</label>
+                <input type="range" value="1" min="0.5" step="0.5" max="30" data-sliderid="buildtime" />
+                <span class="range-display"></span>
+            </div>
+            <div>
+                <label>Multiplier</label>
+                <input type="range" value="0.5" min="0.5" step="0.25" max="1" data-sliderid="multiplier" />
+                <span class="range-display"></span>
+            </div>
+            <div>
+                <h2>Built per second: <span class="builtpersecond"></span></h2>
+            </div>
+        </div>
+    </template>
+    <script id="slider-wrapper-scripts">
+        {
+            const template = document.querySelector("#slider-wrapper-template");
+            const sliderWrappers = document.querySelectorAll("slider-wrapper").forEach((sliderWrapper, index, arr) => {
+                sliderWrapper.appendChild(document.importNode(template.content, true));
+                const elementIDs = Array.from(sliderWrapper.querySelectorAll(`input[type="range"]`)).map(node => node.dataset.sliderid);
+                const builtpersecond = sliderWrapper.querySelector(".builtpersecond");
+                sliderWrapper.querySelector(".slider-index").innerHTML = `${index + 1}`
+
+                const elements = {};
+                const values = {};
+                elementIDs.forEach(key => {
+                    elements[key] = {
+                        input: sliderWrapper.querySelector(`[data-sliderid="${key}"]`),
+                        display: sliderWrapper.querySelector(`[data-sliderid="${key}"] + .range-display`)
+                    };
+                    values[key] = +(elements[key].input.value);
+                    elements[key].display.innerHTML = `${values[key]}`;
+                    builtpersecond.innerHTML = `${values["numbuilt"] * values["numfactories"] / values["buildtime"] * values["multiplier"]}`;
+                });
+
+                let gubEmitterID = setInterval(() => {
+                    sliderWrapper.dispatchEvent(new Event("gub"));
+                }, 1 / (values["numbuilt"] * values["numfactories"] * (1 / values["buildtime"]) * values["multiplier"]) * 1000);
+                let gubDebounceTimeoutID;
+
+                elementIDs.forEach(key => {
+                    elements[key].display.innerHTML = elements[key].input.value;
+                    elements[key].input.addEventListener("input", e => {
+                        values[key] = +(e.target.value);
+                        elements[key].display.innerHTML = `${values[key]}`;
+                        const persecond = values["numbuilt"] * values["numfactories"] * (1 / values["buildtime"]) * values["multiplier"];
+                        const interval = 1 / persecond * 1000;
+                        builtpersecond.innerHTML = `${persecond}`;
+                        clearInterval(gubEmitterID);
+                        clearTimeout(gubDebounceTimeoutID);
+                        gubDebounceTimeoutID = setTimeout(() => {
+                            gubEmitterID = setInterval(() => {
+                                sliderWrapper.dispatchEvent(new Event("gub"))
+                            }, interval);
+                        }, interval);
+                    });
+                });
+            });
+        }
+
+    </script>
+</body>
+
+</html>
